@@ -300,7 +300,7 @@ func (cf *CryptocompareFetcher) Run() {
 			nextExpected := timeStart.Add(cf.baseTimeframe.Duration)
 			now := time.Now()
 			remaining := nextExpected.Sub(now)
-			log.Info("%s-%s@%s (%s) %s %s left", resp.FromSymbol, resp.ToSymbol, resp.Market, resp.Action, lastTime, remaining)
+			log.Debug("%s-%s@%s (%s) %s %s left", resp.FromSymbol, resp.ToSymbol, resp.Market, resp.Action, lastTime, remaining)
 		case "999":
 			var m HeatBeat999
 			err = json.Unmarshal(message, &m)

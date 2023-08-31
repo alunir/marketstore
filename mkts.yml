@@ -8,7 +8,6 @@ stale_threshold: 5
 bgworkers:
   - module: cryptocomparefeeder.so
     config:
-      query_start: "2023-08-28 00:00"
       base_timeframe: "1Min"
       symbols:
         bybit:
@@ -17,3 +16,6 @@ bgworkers:
         Binance:
           - BTC-USDT
           - ETH-USDT
+triggers:
+  - module: stream.so
+    on: "*/*/*"
