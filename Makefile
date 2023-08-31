@@ -14,6 +14,7 @@ debug:
 	$(MAKE) debug -C contrib/alpaca
 	$(MAKE) debug -C contrib/binancefeeder
 	$(MAKE) debug -C contrib/bitmexfeeder
+	$(MAKE) debug -C contrib/cryptocomparefeeder
 	$(MAKE) debug -C contrib/gdaxfeeder
 	$(MAKE) debug -C contrib/ice
 	$(MAKE) debug -C contrib/iex
@@ -44,6 +45,7 @@ plugins:
 	$(MAKE) -C contrib/stream
 	$(MAKE) -C contrib/xignitefeeder
 	$(MAKE) -C contrib/alpacabkfeeder
+	$(MAKE) -C contrib/cryptocomparefeeder
 
 fmt:
 	GOFLAGS=$(GOFLAGS) go fmt ./...

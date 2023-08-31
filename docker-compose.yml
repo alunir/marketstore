@@ -1,0 +1,15 @@
+version: "3.7"
+
+services:
+  marketstore:
+    # image: alpacamarkets/marketstore:latest
+    build:
+      context: .
+      dockerfile: Dockerfile
+    env_file:
+      - .envrc
+    ports:
+      - "5993:5993"
+    volumes:
+      - ./mkts.yml:/etc/mkts.yml
+      - ./data:/data

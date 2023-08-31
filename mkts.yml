@@ -1,0 +1,19 @@
+root_directory: data
+listen_port: 5993
+grpc_listen_port: 5995
+log_level: info
+stop_grace_period: 0
+wal_rotate_interval: 5
+stale_threshold: 5
+bgworkers:
+  - module: cryptocomparefeeder.so
+    config:
+      query_start: "2023-08-28 00:00"
+      base_timeframe: "1Min"
+      symbols:
+        bybit:
+          - BTC-USDT
+          - ETH-USDT
+        Binance:
+          - BTC-USDT
+          - ETH-USDT
