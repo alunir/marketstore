@@ -11,7 +11,7 @@ func TestConvertToCSM(t *testing.T) {
 	// Create a TimeBucketKey
 	tbk := io.NewTimeBucketKey("AAPL/1Min/OHLCV")
 	// Create a bitmex.TradeBucketedResponse
-	rate := CryptoCompareOhlcvData{
+	rate := OhlcvData23{
 		Ts:         1577836800000,
 		Open:       300,
 		High:       400,

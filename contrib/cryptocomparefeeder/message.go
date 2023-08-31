@@ -1,6 +1,6 @@
 package main
 
-type SubscribeAllComplete3 struct {
+type MessageInfo struct {
 	Type    string `json:"TYPE"`
 	Message string `json:"MESSAGE"`
 	Info    string `json:"INFO"`

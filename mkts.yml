@@ -19,3 +19,5 @@ bgworkers:
 triggers:
   - module: stream.so
     on: "*/*/*"
+    config:
+      filter: ""

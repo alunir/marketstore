@@ -246,7 +246,7 @@ func (cf *CryptocompareFetcher) Run() {
 		}
 		switch resp.Type {
 		case "3":
-			var m SubscribeAllComplete3
+			var m MessageInfo
 			err = json.Unmarshal(message, &m)
 			if err != nil {
 				log.Error("unmarshal:", err)
@@ -272,6 +272,15 @@ func (cf *CryptocompareFetcher) Run() {
 				continue
 			}
 			log.Info("%s", m.Message)
+			continue
+		case "429":
+			var m MessageInfo
+			err = json.Unmarshal(message, &m)
+			if err != nil {
+				log.Error("unmarshal:", err)
+				continue
+			}
+			log.Warn("%s %s", m.Message, m.Info)
 			continue
 		case "500":
 			var m WarningMessage500
