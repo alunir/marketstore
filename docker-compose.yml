@@ -2,10 +2,10 @@ version: "3.7"
 
 services:
   marketstore:
-    # image: alpacamarkets/marketstore:latest
-    build:
-      context: .
-      dockerfile: Dockerfile
+    image: ghcr.io/alunir/marketstore:latest
+    # build:
+    #   context: .
+    #   dockerfile: Dockerfile
     env_file:
       - .envrc
     ports:
