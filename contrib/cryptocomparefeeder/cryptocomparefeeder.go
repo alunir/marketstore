@@ -33,36 +33,6 @@ type JSONParams struct {
 	Subs   []string `json:"subs"`
 }
 
-type CryptocompareMessage struct {
-	Type      string `json:"TYPE"`
-	Message   string `json:"MESSAGE"`
-	Parameter string `json:"PARAMETER"`
-	Info      string `json:"INFO"`
-}
-
-type CryptoCompareOhlcvData struct {
-	Type        string  `json:"TYPE"`
-	Market      string  `json:"MARKET"`
-	FromSymbol  string  `json:"FROMSYMBOL"`
-	ToSymbol    string  `json:"TOSYMBOL"`
-	Ts          int64   `json:"TS"`
-	Unit        string  `json:"UNIT"`
-	Action      string  `json:"ACTION"`
-	Open        float64 `json:"OPEN"`
-	High        float64 `json:"HIGH"`
-	Low         float64 `json:"LOW"`
-	Close       float64 `json:"CLOSE"`
-	VolumeFrom  float64 `json:"VOLUMEFROM"`
-	VolumeTo    float64 `json:"VOLUMETO"`
-	TotalTrades int64   `json:"TOTALTRADES"`
-	FirstTs     int64   `json:"FIRSTTS"`
-	LastTs      int64   `json:"LASTTS"`
-	FirstPrice  float64 `json:"FIRSTPRICE"`
-	MaxPrice    float64 `json:"MAXPRICE"`
-	MinPrice    float64 `json:"MINPRICE"`
-	LastPrice   float64 `json:"LASTPRICE"`
-}
-
 // FetcherConfig is a structure of binancefeeder's parameters.
 type FetcherConfig struct {
 	Symbols       map[string][]string `json:"symbols"`
@@ -104,6 +74,17 @@ func convertTimeframe(timeframeStr string) (string, error) {
 	default:
 		return "", fmt.Errorf("incorrect timeframe format: %s", timeframeStr)
 	}
+}
+
+// findMinDuration returns the minimum duration from the given slice.
+func findMinDuration(durations []time.Duration) time.Duration {
+	min := durations[0]
+	for _, duration := range durations {
+		if duration < min {
+			min = duration
+		}
+	}
+	return min
 }
 
 func findLastTimestamp(tbk *io.TimeBucketKey) time.Time {
@@ -202,7 +183,7 @@ func NewBgWorker(conf map[string]interface{}) (bgworker.BgWorker, error) {
 	}, nil
 }
 
-func convertToCSM(tbk *io.TimeBucketKey, rate CryptoCompareOhlcvData) (csm io.ColumnSeriesMap, lastTime time.Time) {
+func convertToCSM(tbk *io.TimeBucketKey, rate OhlcvData23) (csm io.ColumnSeriesMap, lastTime time.Time) {
 	epoch := make([]int64, 0)
 	open := make([]float64, 0)
 	high := make([]float64, 0)
@@ -239,42 +220,61 @@ func convertToCSM(tbk *io.TimeBucketKey, rate CryptoCompareOhlcvData) (csm io.Co
 
 // Run grabs data in intervals from starting time to ending time.
 // If query_end is not set, it will run forever.
-func (bn *CryptocompareFetcher) Run() {
-	timeStart := time.Time{}
-
-	for e, v := range bn.symbols {
+func (cf *CryptocompareFetcher) Run() {
+	for e, v := range cf.symbols {
 		for _, symbol := range v {
 			symbolDir := fmt.Sprintf("%s_%s", e, symbol)
-			tbk := io.NewTimeBucketKey(symbolDir + "/" + bn.baseTimeframe.String + "/OHLCV")
+			tbk := io.NewTimeBucketKey(symbolDir + "/" + cf.baseTimeframe.String + "/OHLCV")
 			lastTimestamp := findLastTimestamp(tbk)
 			log.Info("lastTimestamp for %s = %v", symbolDir, lastTimestamp)
-			if timeStart.IsZero() || (!lastTimestamp.IsZero() && lastTimestamp.Before(timeStart)) {
-				timeStart = lastTimestamp
-			}
 		}
 	}
 
 	for {
-		_, message, err := bn.client.ReadMessage()
+		_, message, err := cf.client.ReadMessage()
 		if err != nil {
 			log.Error("read:", err)
+			// including rate limit case
+			time.Sleep(time.Minute)
 			continue
 		}
-		var resp CryptoCompareOhlcvData
+		var resp OhlcvData23
 		err = json.Unmarshal(message, &resp)
 		if err != nil {
 			log.Error("unmarshal:", err)
 			continue
 		}
 		switch resp.Type {
+		case "3":
+			var m SubscribeAllComplete3
+			err = json.Unmarshal(message, &m)
+			if err != nil {
+				log.Error("unmarshal:", err)
+				continue
+			}
+			log.Info("%s %s", m.Message, m.Info)
+			time.Sleep(time.Second)
+			continue
 		case "16":
-			log.Info("message: %s", string(message))
+			var m SubscribeComplete16
+			err = json.Unmarshal(message, &m)
+			if err != nil {
+				log.Error("unmarshal:", err)
+				continue
+			}
+			log.Info("%s %s", m.Message, m.Sub)
 			continue
 		case "20":
-			log.Info("message: %s", string(message))
+			var m SubscribeWelcome20
+			err = json.Unmarshal(message, &m)
+			if err != nil {
+				log.Error("unmarshal:", err)
+				continue
+			}
+			log.Info("%s", m.Message)
 			continue
 		case "500":
-			var m CryptocompareMessage
+			var m WarningMessage500
 			err = json.Unmarshal(message, &m)
 			if err != nil {
 				log.Error("unmarshal:", err)
@@ -286,7 +286,7 @@ func (bn *CryptocompareFetcher) Run() {
 			var csm io.ColumnSeriesMap
 
 			symbolDir := fmt.Sprintf("%s_%s-%s", resp.Market, resp.FromSymbol, resp.ToSymbol)
-			tbk := io.NewTimeBucketKey(symbolDir + "/" + bn.baseTimeframe.String + "/OHLCV")
+			tbk := io.NewTimeBucketKey(symbolDir + "/" + cf.baseTimeframe.String + "/OHLCV")
 
 			csm, lastTime := convertToCSM(tbk, resp)
 			err = executor.WriteCSM(csm, false)
@@ -295,20 +295,21 @@ func (bn *CryptocompareFetcher) Run() {
 			}
 
 			// next fetch start point
-			timeStart = lastTime.Add(bn.baseTimeframe.Duration)
+			timeStart := lastTime.Add(cf.baseTimeframe.Duration)
 			// for the next bar to complete, add it once more
-			nextExpected := timeStart.Add(bn.baseTimeframe.Duration)
+			nextExpected := timeStart.Add(cf.baseTimeframe.Duration)
 			now := time.Now()
-			toSleep := nextExpected.Sub(now)
-			log.Info("%s-%s@%s next expected(%v) - now(%v) = %v", resp.FromSymbol, resp.ToSymbol, resp.Market, nextExpected, now, toSleep)
-
-			if toSleep > 0 {
-				log.Info("sleep for %v", toSleep)
-				time.Sleep(toSleep)
-			} else if time.Since(lastTime) < time.Hour {
-				// let's not go too fast if the catch up is less than an hour
-				time.Sleep(time.Second)
+			remaining := nextExpected.Sub(now)
+			log.Info("%s-%s@%s (%s) %s %s left", resp.FromSymbol, resp.ToSymbol, resp.Market, resp.Action, lastTime, remaining)
+		case "999":
+			var m HeatBeat999
+			err = json.Unmarshal(message, &m)
+			if err != nil {
+				log.Error("unmarshal:", err)
+				continue
 			}
+			log.Debug("heatbeat: %d", m.Timems)
+			continue
 		default:
 			log.Error("unknown message type: %s", string(message))
 		}
