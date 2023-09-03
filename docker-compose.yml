@@ -13,3 +13,4 @@ services:
     volumes:
       - ./mkts.yml:/etc/mkts.yml
       - ./data:/data
+    restart: always
