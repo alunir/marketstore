@@ -221,6 +221,8 @@ func convertToCSM(tbk *io.TimeBucketKey, rate OhlcvData23) (csm io.ColumnSeriesM
 // Run grabs data in intervals from starting time to ending time.
 // If query_end is not set, it will run forever.
 func (cf *CryptocompareFetcher) Run() {
+	retryNum := 0
+
 	for e, v := range cf.symbols {
 		for _, symbol := range v {
 			symbolDir := fmt.Sprintf("%s_%s", e, symbol)
@@ -233,10 +235,16 @@ func (cf *CryptocompareFetcher) Run() {
 	for {
 		_, message, err := cf.client.ReadMessage()
 		if err != nil {
-			log.Error("read:", err)
-			// including rate limit case
-			time.Sleep(time.Minute)
-			continue
+			// Max retry is 10 times
+			if retryNum < 10 {
+				log.Error("read:", err.Error())
+				retryNum++
+				// including rate limit case
+				time.Sleep(time.Minute)
+				continue
+			} else {
+				panic(err)
+			}
 		}
 		var resp OhlcvData23
 		err = json.Unmarshal(message, &resp)
