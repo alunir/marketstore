@@ -39,9 +39,11 @@ type FetcherConfig struct {
 	BaseTimeframe string              `json:"base_timeframe"`
 }
 
-// CryptocompareFetcher is the main worker for Binance.
+// CryptocompareFetcher is the main worker for Cryptocompare.
 type CryptocompareFetcher struct {
 	config         map[string]interface{}
+	url            string
+	subadd         []byte
 	client         *websocket.Conn
 	symbols        map[string][]string
 	baseCurrencies []string
@@ -149,7 +151,9 @@ func NewBgWorker(conf map[string]interface{}) (bgworker.BgWorker, error) {
 		return nil, fmt.Errorf("CRYPTOCOMPARE_API_KEY environment variable not set")
 	}
 
-	c, _, err := websocket.DefaultDialer.Dial("wss://streamer.cryptocompare.com/v2?api_key="+apiKey, nil)
+	url := "wss://streamer.cryptocompare.com/v2?api_key=" + apiKey
+
+	c, _, err := websocket.DefaultDialer.Dial(url, nil)
 	if err != nil {
 		log.Fatal("dial:", err)
 		return nil, fmt.Errorf("dial: %w", err)
@@ -168,13 +172,15 @@ func NewBgWorker(conf map[string]interface{}) (bgworker.BgWorker, error) {
 		Subs:   subscriptions,
 	}
 	s, _ := json.Marshal(jsonObj)
-	err = c.WriteMessage(websocket.TextMessage, []byte(string(s)))
+	err = c.WriteMessage(websocket.TextMessage, s)
 	if err != nil {
 		log.Fatal("message:", err)
 	}
 
 	return &CryptocompareFetcher{
 		config:         conf,
+		url:            url,
+		subadd:         s,
 		client:         c,
 		baseCurrencies: baseCurrencies,
 		symbols:        config.Symbols,
@@ -221,8 +227,6 @@ func convertToCSM(tbk *io.TimeBucketKey, rate OhlcvData23) (csm io.ColumnSeriesM
 // Run grabs data in intervals from starting time to ending time.
 // If query_end is not set, it will run forever.
 func (cf *CryptocompareFetcher) Run() {
-	retryNum := 0
-
 	for e, v := range cf.symbols {
 		for _, symbol := range v {
 			symbolDir := fmt.Sprintf("%s_%s", e, symbol)
@@ -235,16 +239,19 @@ func (cf *CryptocompareFetcher) Run() {
 	for {
 		_, message, err := cf.client.ReadMessage()
 		if err != nil {
-			// Max retry is 10 times
-			if retryNum < 10 {
-				log.Error("read:", err.Error())
-				retryNum++
-				// including rate limit case
+			log.Error("read:", err.Error())
+			cf.client, _, err = websocket.DefaultDialer.Dial(cf.url, nil)
+			if err != nil {
+				log.Fatal("dial:", err)
 				time.Sleep(time.Minute)
 				continue
-			} else {
-				panic(err)
 			}
+			err = cf.client.WriteMessage(websocket.TextMessage, cf.subadd)
+			if err != nil {
+				log.Fatal("dial:", err)
+				time.Sleep(time.Minute)
+			}
+			continue
 		}
 		var resp OhlcvData23
 		err = json.Unmarshal(message, &resp)
@@ -354,7 +361,7 @@ func main() {
 	jsonObj := JSONParams{Action: "SubAdd", Subs: []string{"24~CCCAGG~BTC~USD~m"}}
 	s, _ := json.Marshal(jsonObj)
 	fmt.Println(string(s))
-	err = c.WriteMessage(websocket.TextMessage, []byte(string(s)))
+	err = c.WriteMessage(websocket.TextMessage, s)
 	if err != nil {
 		log.Fatal("message:", err)
 	}
