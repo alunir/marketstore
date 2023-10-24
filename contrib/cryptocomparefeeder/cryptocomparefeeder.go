@@ -227,6 +227,8 @@ func convertToCSM(tbk *io.TimeBucketKey, rate OhlcvData23) (csm io.ColumnSeriesM
 // Run grabs data in intervals from starting time to ending time.
 // If query_end is not set, it will run forever.
 func (cf *CryptocompareFetcher) Run() {
+	errTs := time.Now()
+
 	for e, v := range cf.symbols {
 		for _, symbol := range v {
 			symbolDir := fmt.Sprintf("%s_%s", e, symbol)
@@ -239,7 +241,15 @@ func (cf *CryptocompareFetcher) Run() {
 	for {
 		_, message, err := cf.client.ReadMessage()
 		if err != nil {
+			if time.Now().Add(-25 * time.Minute).After(errTs) {
+				panic("no data for 25 minutes")
+			}
 			log.Error("read:", err.Error())
+			err := cf.client.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""))
+			if err != nil {
+				log.Error("write close:", err)
+			}
+			cf.client.Close()
 			cf.client, _, err = websocket.DefaultDialer.Dial(cf.url, nil)
 			if err != nil {
 				log.Fatal("dial:", err)
@@ -253,6 +263,7 @@ func (cf *CryptocompareFetcher) Run() {
 			}
 			continue
 		}
+		errTs = time.Now()
 		var resp OhlcvData23
 		err = json.Unmarshal(message, &resp)
 		if err != nil {
