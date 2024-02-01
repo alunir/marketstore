@@ -35,6 +35,12 @@ type SubscribeComplete16 struct {
 	Sub     string `json:"SUB"`
 }
 
+type UnSubscribeComplete17 struct {
+	Type    string `json:"TYPE"`
+	Message string `json:"MESSAGE"`
+	Sub     string `json:"SUB"`
+}
+
 type WarningMessage500 struct {
 	Type      string `json:"TYPE"`
 	Message   string `json:"MESSAGE"`

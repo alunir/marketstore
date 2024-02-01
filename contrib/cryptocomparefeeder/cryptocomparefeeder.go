@@ -174,7 +174,7 @@ func NewBgWorker(conf map[string]interface{}) (bgworker.BgWorker, error) {
 	s, _ := json.Marshal(jsonObj)
 	err = c.WriteMessage(websocket.TextMessage, s)
 	if err != nil {
-		log.Fatal("message:", err)
+		log.Fatal("message: %v", err)
 	}
 
 	return &CryptocompareFetcher{
@@ -224,6 +224,28 @@ func convertToCSM(tbk *io.TimeBucketKey, rate OhlcvData23) (csm io.ColumnSeriesM
 	return csm, lastTime
 }
 
+func (cf *CryptocompareFetcher) Reconnect() {
+	log.Info("reconnecting...")
+	cf.client.Close()
+	var err error
+	for {
+		cf.client, _, err = websocket.DefaultDialer.Dial(cf.url, nil)
+		if err != nil {
+			log.Fatal("reconnect.dial: %v", err)
+			time.Sleep(10 * time.Second)
+			continue
+		}
+		err = cf.client.WriteMessage(websocket.TextMessage, cf.subadd)
+		if err != nil {
+			log.Fatal("reconnect.write: %v", err)
+			time.Sleep(10 * time.Second)
+			continue
+		}
+		log.Info("reconnected")
+		return
+	}
+}
+
 // Run grabs data in intervals from starting time to ending time.
 // If query_end is not set, it will run forever.
 func (cf *CryptocompareFetcher) Run() {
@@ -244,30 +266,19 @@ func (cf *CryptocompareFetcher) Run() {
 			if time.Now().Add(-25 * time.Minute).After(errTs) {
 				panic("no data for 25 minutes")
 			}
-			log.Error("read:", err.Error())
+			log.Error("read: %v", err)
 			err := cf.client.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""))
 			if err != nil {
-				log.Error("write close:", err)
+				log.Error("write close: %v", err)
 			}
-			cf.client.Close()
-			cf.client, _, err = websocket.DefaultDialer.Dial(cf.url, nil)
-			if err != nil {
-				log.Fatal("dial:", err)
-				time.Sleep(time.Minute)
-				continue
-			}
-			err = cf.client.WriteMessage(websocket.TextMessage, cf.subadd)
-			if err != nil {
-				log.Fatal("dial:", err)
-				time.Sleep(time.Minute)
-			}
+			cf.Reconnect()
 			continue
 		}
 		errTs = time.Now()
 		var resp OhlcvData23
 		err = json.Unmarshal(message, &resp)
 		if err != nil {
-			log.Error("unmarshal:", err)
+			log.Error("unmarshal: %v", err)
 			continue
 		}
 		switch resp.Type {
@@ -275,7 +286,7 @@ func (cf *CryptocompareFetcher) Run() {
 			var m MessageInfo
 			err = json.Unmarshal(message, &m)
 			if err != nil {
-				log.Error("unmarshal:", err)
+				log.Error("unmarshal: %v", err)
 				continue
 			}
 			log.Info("%s %s", m.Message, m.Info)
@@ -285,16 +296,26 @@ func (cf *CryptocompareFetcher) Run() {
 			var m SubscribeComplete16
 			err = json.Unmarshal(message, &m)
 			if err != nil {
-				log.Error("unmarshal:", err)
+				log.Error("unmarshal: %v", err)
 				continue
 			}
 			log.Info("%s %s", m.Message, m.Sub)
+			continue
+		case "17":
+			var m UnSubscribeComplete17
+			err = json.Unmarshal(message, &m)
+			if err != nil {
+				log.Error("unmarshal: %v", err)
+				continue
+			}
+			log.Info("%s %s", m.Message, m.Sub)
+			cf.Reconnect()
 			continue
 		case "20":
 			var m SubscribeWelcome20
 			err = json.Unmarshal(message, &m)
 			if err != nil {
-				log.Error("unmarshal:", err)
+				log.Error("unmarshal: %v", err)
 				continue
 			}
 			log.Info("%s", m.Message)
@@ -303,7 +324,7 @@ func (cf *CryptocompareFetcher) Run() {
 			var m MessageInfo
 			err = json.Unmarshal(message, &m)
 			if err != nil {
-				log.Error("unmarshal:", err)
+				log.Error("unmarshal: %v", err)
 				continue
 			}
 			log.Warn("%s %s", m.Message, m.Info)
@@ -312,7 +333,7 @@ func (cf *CryptocompareFetcher) Run() {
 			var m WarningMessage500
 			err = json.Unmarshal(message, &m)
 			if err != nil {
-				log.Error("unmarshal:", err)
+				log.Error("unmarshal: %v", err)
 				continue
 			}
 			log.Info("message: %s %s %s", m.Message, m.Parameter, m.Info)
@@ -340,7 +361,7 @@ func (cf *CryptocompareFetcher) Run() {
 			var m HeatBeat999
 			err = json.Unmarshal(message, &m)
 			if err != nil {
-				log.Error("unmarshal:", err)
+				log.Error("unmarshal: %v", err)
 				continue
 			}
 			log.Debug("heatbeat: %d", m.Timems)
