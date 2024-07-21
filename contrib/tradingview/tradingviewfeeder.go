@@ -304,7 +304,7 @@ func (cf *TradingViewFetcher) Subscribe(client *websocket.Conn, e, symbol string
 					var csm io.ColumnSeriesMap
 
 					ohlcv := createOhlcvData(bars)
-					log.Info("%v@%v %v", symbol, e, ohlcv)
+					// log.Debug("%v@%v %v", symbol, e, ohlcv)
 					resetBars(&bars)
 					csm, lastTime := convertToCSM(tbk, ohlcv)
 					err = executor.WriteCSM(csm, false)
