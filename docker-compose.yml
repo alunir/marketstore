@@ -1,11 +1,9 @@
 services:
   marketstore:
-    # image: ghcr.io/alunir/marketstore:latest
-    build:
-      context: .
-      dockerfile: Dockerfile
-    env_file:
-      - .envrc
+    image: ghcr.io/alunir/marketstore:latest
+    # build:
+    #   context: .
+    #   dockerfile: Dockerfile
     ports:
       - "5993:5993"
     volumes:
