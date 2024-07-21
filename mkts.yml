@@ -6,16 +6,28 @@ stop_grace_period: 0
 wal_rotate_interval: 5
 stale_threshold: 5
 bgworkers:
-  - module: cryptocomparefeeder.so
+  - module: tradingviewfeeder.so
     config:
       base_timeframe: "1Min"
+      bars: 128
       symbols:
-        bybit:
-          - BTC-USDT
-          - ETH-USDT
-        Binance:
-          - BTC-USDT
-          - ETH-USDT
+        BYBIT:
+          - BTCUSDT
+          - ETHUSDT
+        BINANCE:
+          - BTCUSDT
+          - ETHUSDT
+        TVC:
+          - US02Y
+          - US10Y
+          - USOIL
+          - VIX
+          - GOLD
+        FXCM:
+          - SPX500
+          - US30
+          - USDJPY
+          - EURUSD
 triggers:
   - module: stream.so
     on: "*/*/*"
