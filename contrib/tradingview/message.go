@@ -13,10 +13,6 @@ func (v *Bar) UnmarshalJSON(data []byte) error {
 		return err
 	}
 
-	if len(temp) != 6 {
-		return fmt.Errorf("expected 6 elements, got %d", len(temp))
-	}
-
 	// 最初の要素をint64に変換
 	first, ok := temp[0].(float64)
 	if !ok {
@@ -25,7 +21,7 @@ func (v *Bar) UnmarshalJSON(data []byte) error {
 	v.Timestamp = int64(first)
 
 	// 残りの要素をfloat64に変換
-	for i := 1; i < 6; i++ {
+	for i := 1; i < len(temp); i++ {
 		rest, ok := temp[i].(float64)
 		if !ok {
 			return fmt.Errorf("expected float64 for element %d, got %T", i, temp[i])
