@@ -13,10 +13,14 @@ bgworkers:
       symbols:
         BYBIT:
           - BTCUSDT
+          - BTCUSDT.P
           - ETHUSDT
+          - ETHUSDT.P
         BINANCE:
           - BTCUSDT
+          - BTCUSDT.P
           - ETHUSDT
+          - ETHUSDT.P
         TVC:
           - US02Y
           - US10Y
