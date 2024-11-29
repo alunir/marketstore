@@ -24,14 +24,20 @@ bgworkers:
         TVC:
           - US02Y
           - US10Y
+          - US30Y
           - USOIL
           - VIX
           - GOLD
+          - SPX
+          - DJI
+          - NDQ
+          - NI225
+          - DXY
         FXCM:
-          - SPX500
-          - US30
           - USDJPY
           - EURUSD
+          - GBPUSD
+          - US2000
 triggers:
   - module: stream.so
     on: "*/*/*"
