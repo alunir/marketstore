@@ -179,7 +179,7 @@ func NewBgWorker(conf map[string]interface{}) (bgworker.BgWorker, error) {
 	}, nil
 }
 
-func convertToCSM(tbk *io.TimeBucketKey, data OhlcvData) (csm io.ColumnSeriesMap, lastTime time.Time) {
+func convertToCSM(tbk *io.TimeBucketKey, data []OhlcvData) (csm io.ColumnSeriesMap, lastTime time.Time) {
 	epoch := make([]int64, 0)
 	open := make([]float64, 0)
 	high := make([]float64, 0)
@@ -188,17 +188,32 @@ func convertToCSM(tbk *io.TimeBucketKey, data OhlcvData) (csm io.ColumnSeriesMap
 	volume := make([]float64, 0)
 	tradeCount := make([]int64, 0)
 
-	parsedTime := time.Unix(data.Timestamp, 0)
-	if parsedTime.After(lastTime) {
-		lastTime = parsedTime
+	for _, d := range data {
+		parsedTime := time.Unix(d.Timestamp, 0)
+		if parsedTime.After(lastTime) {
+			lastTime = parsedTime
+
+			// new bar
+			epoch = append(epoch, parsedTime.Unix())
+			open = append(open, d.Open)
+			high = append(high, d.High)
+			low = append(low, d.Low)
+			clos = append(clos, d.Close)
+			volume = append(volume, d.Volume)
+			tradeCount = append(tradeCount, d.TotalTrades)
+		} else {
+			// sum up
+			clos[len(clos)-1] = d.Close
+			if d.High > high[len(high)-1] {
+				high[len(high)-1] = d.High
+			}
+			if d.Low < low[len(low)-1] {
+				low[len(low)-1] = d.Low
+			}
+			volume[len(volume)-1] += d.Volume
+			tradeCount[len(tradeCount)-1] += d.TotalTrades
+		}
 	}
-	epoch = append(epoch, parsedTime.Unix())
-	open = append(open, data.Open)
-	high = append(high, data.High)
-	low = append(low, data.Low)
-	clos = append(clos, data.Close)
-	volume = append(volume, data.Volume)
-	tradeCount = append(tradeCount, data.TotalTrades)
 
 	cs := io.NewColumnSeries()
 	cs.AddColumn("Epoch", epoch)
@@ -311,13 +326,8 @@ func (cf *TradingViewFetcher) Subscribe(client *websocket.Conn, e, symbol string
 					}
 					bars = append(bars, s1.S...)
 
-				} else {
-
-					var csm io.ColumnSeriesMap
-
 					ohlcv := createOhlcvData(bars)
-					// log.Debug("%v@%v %v", symbol, e, ohlcv)
-					resetBars(&bars)
+
 					csm, lastTime := convertToCSM(tbk, ohlcv)
 					err = executor.WriteCSM(csm, false)
 					if err != nil {
@@ -332,6 +342,29 @@ func (cf *TradingViewFetcher) Subscribe(client *websocket.Conn, e, symbol string
 					remaining := nextExpected.Sub(now)
 					log.Debug("%s@%s %s %s left", symbol, e, lastTime, remaining)
 
+					resetBars(&bars)
+
+				} else {
+
+					var csm io.ColumnSeriesMap
+
+					ohlcv := createOhlcvData(bars)
+					// log.Debug("%v@%v %v", symbol, e, ohlcv)
+					csm, lastTime := convertToCSM(tbk, ohlcv)
+					err = executor.WriteCSM(csm, false)
+					if err != nil {
+						log.Error("failed to write CSM for " + e + "_" + symbol + " data. err=" + err.Error())
+					}
+
+					// next fetch start point
+					timeStart := lastTime.Add(cf.baseTimeframe.Duration)
+					// for the next bar to complete, add it once more
+					nextExpected := timeStart.Add(cf.baseTimeframe.Duration)
+					now := time.Now()
+					remaining := nextExpected.Sub(now)
+					log.Debug("%s@%s %s %s left", symbol, e, lastTime, remaining)
+
+					resetBars(&bars)
 				}
 
 			} else if payload.M == "du" {
@@ -447,6 +480,7 @@ func main() {
 					// fmt.Println("timescale_update")
 					if len(bars) == 0 {
 						// fmt.Printf("timescale_update: %v\n", payload.P)
+						// fmt.Println("first data")
 						s1, err := convertPayloadToS1(payload)
 						if err != nil {
 							fmt.Println("Error convertMsgToS1 s1 data:", err)
@@ -458,6 +492,7 @@ func main() {
 						fmt.Println(ohlcv)
 						resetBars(&bars)
 						// convertToCSM(tbk, bars)
+						// fmt.Println(bars)
 					}
 				} else if payload.M == "du" {
 					s1, err := convertPayloadToS1(payload)
@@ -469,7 +504,7 @@ func main() {
 					// fmt.Printf("%v\n", s1.S)
 				}
 			}
-			fmt.Printf("%v\n", bars)
+			// fmt.Printf("%v\n", bars)
 		}
 	}()
 

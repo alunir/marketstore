@@ -47,16 +47,18 @@ type OhlcvData struct {
 	TotalTrades int64   `json:"number"`
 }
 
-func createOhlcvData(bars Bars) OhlcvData {
-	l := len(bars)
-	ohlcvData := OhlcvData{
-		Timestamp:   bars[l-1].V.Timestamp,
-		Open:        bars[l-1].V.OHLCV[0],
-		High:        bars[l-1].V.OHLCV[1],
-		Low:         bars[l-1].V.OHLCV[2],
-		Close:       bars[l-1].V.OHLCV[3],
-		Volume:      bars[l-1].V.OHLCV[4],
-		TotalTrades: int64(len(bars)),
+func createOhlcvData(bars Bars) []OhlcvData {
+	var ohlcvData []OhlcvData
+	for _, bar := range bars {
+		ohlcvData = append(ohlcvData, OhlcvData{
+			Timestamp:   bar.V.Timestamp,
+			Open:        bar.V.OHLCV[0],
+			High:        bar.V.OHLCV[1],
+			Low:         bar.V.OHLCV[2],
+			Close:       bar.V.OHLCV[3],
+			Volume:      bar.V.OHLCV[4],
+			TotalTrades: int64(len(bars)),
+		})
 	}
 	return ohlcvData
 
