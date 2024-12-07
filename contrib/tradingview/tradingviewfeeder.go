@@ -302,7 +302,17 @@ func (cf *TradingViewFetcher) Subscribe(client *websocket.Conn, e, symbol string
 			if payload.M == "timescale_update" {
 				// log.Debug("timescale_update")
 
-				if len(bars) > 0 {
+				if len(bars) == 0 {
+					// fmt.Printf("timescale_update: %v\n", payload.P)
+					s1, err := convertPayloadToS1(payload)
+					if err != nil {
+						fmt.Println("Error convertMsgToS1 s1 data:", err)
+						return
+					}
+					bars = append(bars, s1.S...)
+
+				} else {
+
 					var csm io.ColumnSeriesMap
 
 					ohlcv := createOhlcvData(bars)
@@ -384,7 +394,7 @@ func main() {
 		Message{M: "set_auth_token", P: []interface{}{"unauthorized_user_token"}},
 		Message{M: "chart_create_session", P: []interface{}{chartsession, ""}},
 		Message{M: "resolve_symbol", P: []interface{}{chartsession, "symbol_1", "={\"symbol\":\"" + instrument + "\", \"adjustment\":\"splits\",\"session\":\"extended\"}"}},
-		Message{M: "create_series", P: []interface{}{chartsession, "s1", "s1", "symbol_1", "1", 5}}, // 1 = 1 minute, 50 = 50 bars
+		Message{M: "create_series", P: []interface{}{chartsession, "s1", "s1", "symbol_1", "1", 10}}, // 1 = 1 minute, 50 = 50 bars
 	}
 
 	for _, m := range initMessages {
@@ -459,6 +469,7 @@ func main() {
 					// fmt.Printf("%v\n", s1.S)
 				}
 			}
+			fmt.Printf("%v\n", bars)
 		}
 	}()
 
