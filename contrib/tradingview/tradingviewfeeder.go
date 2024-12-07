@@ -103,6 +103,7 @@ type TradingViewFetcher struct {
 	url           string
 	symbols       map[string][]string
 	baseTimeframe *utils.Timeframe
+	bars          int
 }
 
 // recast changes parsed JSON-encoded data represented as an interface to FetcherConfig structure.
@@ -174,6 +175,7 @@ func NewBgWorker(conf map[string]interface{}) (bgworker.BgWorker, error) {
 		url:           "wss://data.tradingview.com/socket.io/websocket?from=",
 		symbols:       config.Symbols,
 		baseTimeframe: utils.NewTimeframe(timeframeStr),
+		bars:          config.Bars,
 	}, nil
 }
 
@@ -231,7 +233,7 @@ func (cf *TradingViewFetcher) Reconnect(client *websocket.Conn, e, symbol string
 	}
 }
 
-func (cf *TradingViewFetcher) Subscribe(client *websocket.Conn, e, symbol string) {
+func (cf *TradingViewFetcher) Subscribe(client *websocket.Conn, e, symbol string, n int) {
 	instrument := e + ":" + symbol
 
 	interrupt := make(chan os.Signal, 1)
@@ -247,7 +249,7 @@ func (cf *TradingViewFetcher) Subscribe(client *websocket.Conn, e, symbol string
 		Message{M: "set_auth_token", P: []interface{}{"unauthorized_user_token"}},
 		Message{M: "chart_create_session", P: []interface{}{chartsession, ""}},
 		Message{M: "resolve_symbol", P: []interface{}{chartsession, "symbol_1", "={\"symbol\":\"" + instrument + "\", \"adjustment\":\"splits\",\"session\":\"extended\"}"}},
-		Message{M: "create_series", P: []interface{}{chartsession, "s1", "s1", "symbol_1", timeframe, 50}}, // 1 = 1 minute, 50 = 50 bars
+		Message{M: "create_series", P: []interface{}{chartsession, "s1", "s1", "symbol_1", timeframe, n}}, // 1 = 1 minute, 50 = 50 bars
 	}
 
 	for _, m := range initMessages {
@@ -352,7 +354,7 @@ func (cf *TradingViewFetcher) Run() {
 				log.Fatal("dial:", err)
 			}
 
-			go cf.Subscribe(client, e, symbol)
+			go cf.Subscribe(client, e, symbol, cf.bars)
 		}
 	}
 	cf.wg.Add(numGoroutines)
