@@ -384,7 +384,7 @@ func main() {
 		Message{M: "set_auth_token", P: []interface{}{"unauthorized_user_token"}},
 		Message{M: "chart_create_session", P: []interface{}{chartsession, ""}},
 		Message{M: "resolve_symbol", P: []interface{}{chartsession, "symbol_1", "={\"symbol\":\"" + instrument + "\", \"adjustment\":\"splits\",\"session\":\"extended\"}"}},
-		Message{M: "create_series", P: []interface{}{chartsession, "s1", "s1", "symbol_1", "1", 50}}, // 1 = 1 minute, 50 = 50 bars
+		Message{M: "create_series", P: []interface{}{chartsession, "s1", "s1", "symbol_1", "1", 5}}, // 1 = 1 minute, 50 = 50 bars
 	}
 
 	for _, m := range initMessages {
@@ -421,6 +421,8 @@ func main() {
 				return
 			}
 
+			// fmt.Printf("recv.payload: %s\n", payloads)
+
 			if len(payloads) == 0 {
 				err = c.WriteMessage(websocket.TextMessage, message)
 				fmt.Println("keep-alive")
@@ -430,9 +432,18 @@ func main() {
 				}
 			}
 			for _, payload := range payloads {
+				// fmt.Printf("recv.payload.M: %s\n", payload.M)
 				if payload.M == "timescale_update" {
-					fmt.Println("timescale_update")
-					if len(bars) > 0 {
+					// fmt.Println("timescale_update")
+					if len(bars) == 0 {
+						// fmt.Printf("timescale_update: %v\n", payload.P)
+						s1, err := convertPayloadToS1(payload)
+						if err != nil {
+							fmt.Println("Error convertMsgToS1 s1 data:", err)
+							return
+						}
+						bars = append(bars, s1.S...)
+					} else {
 						ohlcv := createOhlcvData(bars)
 						fmt.Println(ohlcv)
 						resetBars(&bars)

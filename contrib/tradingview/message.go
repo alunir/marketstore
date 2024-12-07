@@ -63,8 +63,8 @@ func createOhlcvData(bars Bars) OhlcvData {
 }
 
 type NS struct {
-	D       string `json:"d"`
-	Indexes string `json:"indexes"`
+	D       string      `json:"d"`
+	Indexes interface{} `json:"indexes"`
 }
 
 type LBS struct {
@@ -74,10 +74,12 @@ type LBS struct {
 type Bars []BarIndex
 
 type S1 struct {
-	S   Bars   `json:"s"`
-	NS  NS     `json:"ns"`
-	T   string `json:"t"`
-	LBS LBS    `json:"lbs"`
+	S       Bars   `json:"s"`
+	NS      NS     `json:"ns"`
+	T       string `json:"t"`
+	LBS     LBS    `json:"lbs"`
+	Node    string `json:"node"`
+	Zoffset int64  `json:"zoffset"`
 }
 
 type Message struct {
