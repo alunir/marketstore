@@ -38,26 +38,26 @@ type BarIndex struct {
 }
 
 type OhlcvData struct {
-	Timestamp   int64   `json:"timestamp"`
-	Open        float64 `json:"open"`
-	High        float64 `json:"high"`
-	Low         float64 `json:"low"`
-	Close       float64 `json:"close"`
-	Volume      float64 `json:"volume"`
-	TotalTrades int64   `json:"number"`
+	Timestamp int64   `json:"timestamp"`
+	Open      float64 `json:"open"`
+	High      float64 `json:"high"`
+	Low       float64 `json:"low"`
+	Close     float64 `json:"close"`
+	Volume    float64 `json:"volume"`
+	// TotalTrades int64   `json:"number"`
 }
 
 func createOhlcvData(bars Bars) []OhlcvData {
 	var ohlcvData []OhlcvData
 	for _, bar := range bars {
 		ohlcvData = append(ohlcvData, OhlcvData{
-			Timestamp:   bar.V.Timestamp,
-			Open:        bar.V.OHLCV[0],
-			High:        bar.V.OHLCV[1],
-			Low:         bar.V.OHLCV[2],
-			Close:       bar.V.OHLCV[3],
-			Volume:      bar.V.OHLCV[4],
-			TotalTrades: int64(len(bars)),
+			Timestamp: bar.V.Timestamp,
+			Open:      bar.V.OHLCV[0],
+			High:      bar.V.OHLCV[1],
+			Low:       bar.V.OHLCV[2],
+			Close:     bar.V.OHLCV[3],
+			Volume:    bar.V.OHLCV[4],
+			// TotalTrades: int64(len(bars)),
 		})
 	}
 	return ohlcvData

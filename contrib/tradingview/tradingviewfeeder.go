@@ -186,7 +186,6 @@ func convertToCSM(tbk *io.TimeBucketKey, data []OhlcvData) (csm io.ColumnSeriesM
 	low := make([]float64, 0)
 	clos := make([]float64, 0)
 	volume := make([]float64, 0)
-	tradeCount := make([]int64, 0)
 
 	for _, d := range data {
 		parsedTime := time.Unix(d.Timestamp, 0)
@@ -200,7 +199,7 @@ func convertToCSM(tbk *io.TimeBucketKey, data []OhlcvData) (csm io.ColumnSeriesM
 			low = append(low, d.Low)
 			clos = append(clos, d.Close)
 			volume = append(volume, d.Volume)
-			tradeCount = append(tradeCount, d.TotalTrades)
+			// tradeCount = append(tradeCount, d.TotalTrades)
 		} else {
 			// sum up
 			clos[len(clos)-1] = d.Close
@@ -211,7 +210,7 @@ func convertToCSM(tbk *io.TimeBucketKey, data []OhlcvData) (csm io.ColumnSeriesM
 				low[len(low)-1] = d.Low
 			}
 			volume[len(volume)-1] += d.Volume
-			tradeCount[len(tradeCount)-1] += d.TotalTrades
+			// tradeCount[len(tradeCount)-1] += d.TotalTrades
 		}
 	}
 
@@ -222,7 +221,7 @@ func convertToCSM(tbk *io.TimeBucketKey, data []OhlcvData) (csm io.ColumnSeriesM
 	cs.AddColumn("Low", low)
 	cs.AddColumn("Close", clos)
 	cs.AddColumn("Volume", volume)
-	cs.AddColumn("Trades", tradeCount)
+	// cs.AddColumn("Trades", tradeCount)
 	csm = io.NewColumnSeriesMap()
 	csm.AddColumnSeries(*tbk, cs)
 	return csm, lastTime
@@ -427,7 +426,7 @@ func main() {
 		Message{M: "set_auth_token", P: []interface{}{"unauthorized_user_token"}},
 		Message{M: "chart_create_session", P: []interface{}{chartsession, ""}},
 		Message{M: "resolve_symbol", P: []interface{}{chartsession, "symbol_1", "={\"symbol\":\"" + instrument + "\", \"adjustment\":\"splits\",\"session\":\"extended\"}"}},
-		Message{M: "create_series", P: []interface{}{chartsession, "s1", "s1", "symbol_1", "1", 10}}, // 1 = 1 minute, 50 = 50 bars
+		Message{M: "create_series", P: []interface{}{chartsession, "s1", "s1", "symbol_1", "1", 20000}}, // 1 = 1 minute, 50 = 50 bars
 	}
 
 	for _, m := range initMessages {
@@ -486,6 +485,7 @@ func main() {
 							fmt.Println("Error convertMsgToS1 s1 data:", err)
 							return
 						}
+						fmt.Printf("bars length: %d\n", len(s1.S))
 						bars = append(bars, s1.S...)
 					} else {
 						ohlcv := createOhlcvData(bars)
